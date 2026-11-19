@@ -12,7 +12,8 @@
     "start": "electron .",
     "pretest": "node scripts/build.mjs",
     "test": "tsx --test tests/*.test.ts",
-    "package": "npm run build && electron-builder --mac dir"
+    "package": "npm run build && electron-builder --mac dir",
+    "release:mac": "bash scripts/release-mac.sh"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.32.2",
@@ -52,7 +53,17 @@
       "icon": "assets/branding/dobby-original-elf-ai-v1.icns",
       "extendInfo": {
         "NSMicrophoneUsageDescription": "Dobby uses your selected audio input to animate the avatar's mouth."
-      }
+      },
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "notarize": false,
+      "artifactName": "Dobby-${version}-mac-${arch}.${ext}"
+    },
+    "dmg": {
+      "title": "Dobby ${version}",
+      "sign": true
     }
   }
 }

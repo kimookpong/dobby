@@ -26,6 +26,14 @@ codex login
 
 ## 2. ติดตั้ง
 
+### แบบง่าย: ดาวน์โหลดแอปสำเร็จรูป
+
+1. ดาวน์โหลด `Dobby-<เวอร์ชัน>-mac-universal.dmg` จาก [Releases](https://github.com/kimookpong/dobby/releases) (ใช้ได้ทั้ง Apple Silicon และ Intel)
+2. เปิดไฟล์ DMG แล้วลาก Dobby ไปที่ Applications
+3. เปิดแอปได้เลย แอปเซ็นด้วย Developer ID และผ่าน notarize กับ Apple แล้ว
+
+### แบบ build เอง
+
 ```bash
 git clone https://github.com/kimookpong/dobby.git
 ```
@@ -65,6 +73,16 @@ codesign --force --deep --sign - release/mac-arm64/Dobby.app
 ```bash
 xattr -dr com.apple.quarantine /Applications/Dobby.app
 ```
+
+### ออกเวอร์ชันใหม่ (สำหรับผู้ดูแล)
+
+แก้ `version` ใน `package.json` แล้วรัน (ต้องมีใบรับรอง Developer ID และ notarytool profile ใน Keychain):
+
+```bash
+npm run release:mac
+```
+
+ได้ไฟล์ `release/Dobby-<เวอร์ชัน>-mac-universal.dmg` ที่เซ็น notarize และ staple แล้ว ใช้ profile ชื่ออื่นได้ด้วย `DOBBY_NOTARY_PROFILE=<ชื่อ>`
 
 ## 3. ตั้งค่าครั้งแรก (ทำครั้งเดียว)
 
