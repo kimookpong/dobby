@@ -32,5 +32,10 @@ const api: DobbyAPI = {
   importBackground: (kind) =>
     ipcRenderer.invoke("dobby:import-background", kind),
   debugMetrics: () => ipcRenderer.invoke("dobby:debug-metrics"),
+  onVoiceReplyDone: (callback) => {
+    const listener = () => callback();
+    ipcRenderer.on("dobby:voice-reply-done", listener);
+    return () => ipcRenderer.removeListener("dobby:voice-reply-done", listener);
+  },
 };
 contextBridge.exposeInMainWorld("dobby", api);

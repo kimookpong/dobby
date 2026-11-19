@@ -30,6 +30,7 @@ export class DobbyVoice extends EventEmitter {
     hasCodex: false,
     accountReady: false,
     speaking: false,
+    utterance: 0,
     message: "ใช้บัญชี ChatGPT ที่ล็อกอินใน Codex CLI · ไม่ต้องใช้ API key",
   };
   private rpc: CodexRpc | null = null;
@@ -108,7 +109,11 @@ export class DobbyVoice extends EventEmitter {
           params.role === "assistant" &&
           typeof params.text === "string"
         )
+        {
           this.emit("transcript", params.text.slice(0, 1200));
+          // Lets the player end the utterance after a short silence instead of a long guess.
+          this.emit("replyDone");
+        }
         // Audience conversations never run delegated coding-agent tasks.
         if (
           this.state.mode === "host" &&
@@ -199,8 +204,20 @@ export class DobbyVoice extends EventEmitter {
     this.state.message = "กำลังเชื่อมเสียงผ่าน Codex…";
     this.publish();
     try {
+      // Speech needs no tools: keep the user's configured MCP servers (including
+      // Dobby's own) from starting inside the voice session.
+      const mcpOff: Record<string, boolean> = {};
+      try {
+        const config = await rpc.call("config/read", { includeLayers: false });
+        for (const name of Object.keys(config?.config?.mcp_servers ?? {}))
+          mcpOff[`mcp_servers.${name}.enabled`] = false;
+      } catch {
+        /* Older Codex builds: start without overrides rather than failing voice. */
+      }
+      if (generation !== this.generation) throw new Error("ยกเลิกการเชื่อมต่อแล้ว");
       const t = await rpc.call("thread/start", {
         ephemeral: true,
+        ...(Object.keys(mcpOff).length ? { config: mcpOff } : {}),
         cwd: this.folder,
         sandbox: "read-only",
         approvalPolicy: "untrusted",
@@ -265,6 +282,7 @@ export class DobbyVoice extends EventEmitter {
     if (this.state.speaking)
       throw new Error("Dobby กำลังพูดอยู่ · รอให้พูดจบหรือกดหยุดเสียง");
     this.state.speaking = true;
+    this.state.utterance++;
     this.state.message = "กำลังเตรียมเสียง…";
     if (this.idle) clearTimeout(this.idle);
     this.publish();
@@ -297,6 +315,7 @@ export class DobbyVoice extends EventEmitter {
     const hostContext = context ? hostContextSchema.parse(context) : undefined;
     const generation = this.generation;
     this.state.speaking = true;
+    this.state.utterance++;
     this.state.message = "กำลังคิดและตอบผู้ชม…";
     if (this.idle) clearTimeout(this.idle);
     this.publish();

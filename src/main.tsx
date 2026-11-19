@@ -168,7 +168,7 @@ function useAudio(notify: (text: string) => void) {
   const stop = () => {
     const r = resources.current;
     if (r) {
-      cancelAnimationFrame(r.frame);
+      clearInterval(r.frame);
       r.stream.getTracks().forEach((t) => t.stop());
       void r.context.close();
       resources.current = null;
@@ -201,9 +201,10 @@ function useAudio(notify: (text: string) => void) {
         let sum = 0;
         for (let i = 0; i < values.length; i++) sum += values[i] * values[i];
         report(Math.min(1, Math.sqrt(sum / values.length) * 7), true);
-        r.frame = requestAnimationFrame(sample);
       };
+      // Timer, not animation frames: keeps working while the window is covered.
       sample();
+      r.frame = window.setInterval(sample, 30);
       stream.getTracks()[0].onended = stop;
     } catch {
       stop();
@@ -214,7 +215,7 @@ function useAudio(notify: (text: string) => void) {
     () => () => {
       const r = resources.current;
       if (r) {
-        cancelAnimationFrame(r.frame);
+        clearInterval(r.frame);
         r.stream.getTracks().forEach((t) => t.stop());
         void r.context.close();
       }
@@ -240,27 +241,31 @@ function App() {
   const voicePlayer = useCodexVoice(state?.voice, notify);
   const [hostStarting, setHostStarting] = useState(false);
   const hostAttempt = useRef(0);
+  /** Automatic voice recovery: bumped to cancel a pending reconnect. */
+  const recovery = useRef({ running: false, generation: 0 });
   const stopHost = async () => {
+    recovery.current.generation++;
     hostAttempt.current++;
     setHostStarting(false);
     await window.dobby.autoHost(false);
     await voicePlayer.disconnect();
   };
-  const startHost = async (settings?: VoiceSettings) => {
-    if (!state || hostStarting || state.autoHost.enabled) return;
+  const startHost = async (settings?: VoiceSettings): Promise<boolean> => {
+    if (!state || hostStarting || state.autoHost.enabled) return false;
     const attempt = ++hostAttempt.current;
     setHostStarting(true);
     try {
       await window.dobby.autoHost(false);
       await voicePlayer.disconnect();
-      if (attempt !== hostAttempt.current) return;
+      if (attempt !== hostAttempt.current) return false;
       const connected = await voicePlayer.connect(
         settings ?? state.voice.settings,
         false,
         "host",
       );
-      if (attempt !== hostAttempt.current) return;
+      if (attempt !== hostAttempt.current) return false;
       if (connected) await window.dobby.autoHost(true);
+      return connected;
     } catch (e) {
       if (attempt === hostAttempt.current) {
         await voicePlayer.disconnect();
@@ -273,10 +278,43 @@ function App() {
             : "เริ่ม Auto Host ไม่สำเร็จ",
         );
       }
+      return false;
     } finally {
       if (attempt === hostAttempt.current) setHostStarting(false);
     }
   };
+  /** Pressing Start yourself cancels any automatic reconnect in progress. */
+  const manualStartHost = (settings?: VoiceSettings) => {
+    recovery.current.generation++;
+    return startHost(settings);
+  };
+  const startHostRef = useRef(startHost);
+  startHostRef.current = startHost;
+  // When the voice session drops mid-live (session limit, network), reconnect
+  // and resume Auto Host by itself: 3 tries, waiting 2s, 5s, then 10s.
+  useEffect(() => {
+    const host = state?.autoHost;
+    if (!host || host.enabled || host.status !== "error" || !host.recoverable) return;
+    if (recovery.current.running) return;
+    recovery.current.running = true;
+    const generation = recovery.current.generation;
+    void (async () => {
+      try {
+        for (const [i, delay] of [2000, 5000, 10_000].entries()) {
+          notify(`เสียงหลุด · กำลังเชื่อมใหม่อัตโนมัติ (ครั้งที่ ${i + 1}/3)`);
+          await new Promise((r) => setTimeout(r, delay));
+          if (generation !== recovery.current.generation) return;
+          if (await startHostRef.current()) {
+            notify("เชื่อมเสียงใหม่แล้ว · Auto Host ทำงานต่อ");
+            return;
+          }
+        }
+        notify("เชื่อมเสียงใหม่ไม่สำเร็จ 3 ครั้ง · ตรวจเครือข่ายแล้วกดเริ่ม Auto Host เอง");
+      } finally {
+        recovery.current.running = false;
+      }
+    })();
+  }, [state?.autoHost.enabled, state?.autoHost.status, state?.autoHost.recoverable]);
   useEffect(() => {
     if (state?.voice.status === "connected" && audio.active) audio.stop();
   }, [state?.voice.status, audio.active]);
@@ -399,7 +437,7 @@ function App() {
             <ArrowUpRight size={15} />
           </button>
           <div className="version">
-            DOBBY DESKTOP <span>v0.8.0</span>
+            DOBBY DESKTOP <span>v0.8.1</span>
           </div>
         </div>
       </aside>
@@ -471,7 +509,7 @@ function App() {
               <AutoHostPanel
                 state={state}
                 busy={hostStarting}
-                onStart={startHost}
+                onStart={manualStartHost}
                 onStop={stopHost}
               />
               <div className="stats-row">
@@ -925,7 +963,7 @@ function App() {
               player={voicePlayer}
               notify={notify}
               hostStarting={hostStarting}
-              startHost={startHost}
+              startHost={manualStartHost}
               stopHost={stopHost}
             />
           )}

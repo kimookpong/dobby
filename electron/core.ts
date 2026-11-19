@@ -77,6 +77,7 @@ export class DobbyCore extends EventEmitter {
         lastReply: null,
         turnId: 0,
         turnKind: null,
+        recoverable: false,
       },
       scene: { ...DEFAULT_SCENE },
       voice: {
@@ -89,6 +90,7 @@ export class DobbyCore extends EventEmitter {
         hasCodex: false,
         accountReady: false,
         speaking: false,
+        utterance: 0,
         message: "ยังไม่ได้เชื่อมเสียง Codex",
       },
       avatar: {

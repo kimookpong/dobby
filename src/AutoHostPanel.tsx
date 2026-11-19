@@ -11,7 +11,7 @@ export function AutoHostPanel({
   state: AppState;
   busy: boolean;
   settings?: VoiceSettings;
-  onStart: (settings?: VoiceSettings) => Promise<void>;
+  onStart: (settings?: VoiceSettings) => Promise<unknown>;
   onStop: () => Promise<void>;
 }) {
   const host = state.autoHost;

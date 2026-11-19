@@ -156,6 +156,8 @@ export interface VoiceState {
   hasCodex: boolean;
   accountReady: boolean;
   speaking: boolean;
+  /** Increments per spoken request so the window re-arms even if state updates are merged. */
+  utterance: number;
   message: string;
 }
 export interface AIModelInfo {
@@ -221,6 +223,8 @@ export interface AppState {
     /** Increments for every reply or idle turn, so overlays can tell utterances apart. */
     turnId: number;
     turnKind: "reply" | "idle" | "welcome" | null;
+    /** True when Auto Host stopped because the voice session dropped, so the app may reconnect. */
+    recoverable: boolean;
   };
   voice: VoiceState;
   scene: SceneSettings;
@@ -409,6 +413,8 @@ export interface DobbyAPI {
   importCore(): Promise<boolean>;
   avatarReady(id: string, error?: string): void;
   importBackground(kind: "image" | "video"): Promise<boolean>;
+  /** Codex reported that the assistant finished its reply text. */
+  onVoiceReplyDone(callback: () => void): () => void;
   debugMetrics(): Promise<DebugMetrics>;
 }
 declare global {

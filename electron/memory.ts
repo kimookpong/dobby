@@ -45,6 +45,30 @@ export class ConversationMemory extends EventEmitter {
       : [];
     return structuredClone({ settings, task, recentConversation, viewerHistory });
   }
+  /** Timestamp of the newest remembered entry (0 when empty). */
+  get latestAt() {
+    return this.entries.at(-1)?.at ?? 0;
+  }
+  /**
+   * For a long-lived realtime voice session, which already remembers its own turns:
+   * only entries newer than `sinceAt` (viewers only, after the first turn), and a
+   * viewer's older history only the first time that viewer is answered.
+   */
+  contextSince(
+    settings: HostSettings,
+    task: HostContext["task"],
+    viewerId: string | undefined,
+    sinceAt: number,
+    includeViewerHistory: boolean,
+  ): HostContext {
+    const full = this.context(settings, task, includeViewerHistory ? viewerId : undefined);
+    if (sinceAt <= 0) return full;
+    full.recentConversation = this.entries
+      .filter((e) => e.at > sinceAt && e.role === "viewer")
+      .slice(-30)
+      .map((e) => structuredClone(e));
+    return full;
+  }
   async clear() {
     this.entries = [];
     this.emit("change");

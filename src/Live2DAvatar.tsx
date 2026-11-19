@@ -52,6 +52,12 @@ type Engine = {
  * One renderer per window survives page switches: re-creating the WebGL context
  * and re-uploading textures on every navigation caused visible hitches.
  */
+/**
+ * TikTok LIVE Studio encodes at 30 fps, so drawing the broadcast output faster
+ * only burns CPU/GPU on frames the stream never sends.
+ */
+const OUTPUT_FPS = 30;
+const PREVIEW_FPS = 30;
 let shared: Engine | null = null;
 function destroyShared() {
   const e = shared;
@@ -73,7 +79,7 @@ function attach(e: Engine, root: HTMLElement, owner: symbol, preview: boolean) {
   e.owner = owner;
   root.appendChild(e.canvas);
   (e.app as unknown as { resizeTo: HTMLElement }).resizeTo = root;
-  e.app.ticker.maxFPS = preview ? 30 : 60;
+  e.app.ticker.maxFPS = preview ? PREVIEW_FPS : OUTPUT_FPS;
   e.observer.disconnect();
   e.observer.observe(root);
   e.app.resize();
@@ -138,7 +144,7 @@ export function Live2DAvatar({
         const { Live2DModel } = await import("./vendor/cubism4.es.js");
         if (disposed) return;
         Live2DModel.registerTicker(PIXI.Ticker);
-        PIXI.Ticker.shared.maxFPS = preview ? 30 : 60;
+        PIXI.Ticker.shared.maxFPS = preview ? PREVIEW_FPS : OUTPUT_FPS;
         const app = new PIXI.Application({
           backgroundAlpha: 0,
           // Broadcast output keeps full quality; the operator preview is lighter.

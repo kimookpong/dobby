@@ -2,9 +2,10 @@ import { useState, type CSSProperties } from "react";
 import type { AppState, OverlayView } from "./shared";
 import { Overlay } from "./Overlay";
 import { overlayView } from "./overlay-view";
+import { setKeepPreview, useKeepPreview } from "./preview-pause";
 import { Live2DAvatar } from "./Live2DAvatar";
 type SceneState = Pick<AppState, "scene" | "avatar" | "action" | "character"> &
-  Partial<Pick<AppState, "emotion">> &
+  Partial<Pick<AppState, "emotion" | "output">> &
   (
     | { overlayView: OverlayView }
     | Pick<AppState, "overlay" | "autoHost" | "voice">
@@ -43,6 +44,10 @@ export function SceneFrame({
   overlay?: OverlayView | null;
 }) {
   const scene = state.scene;
+  const keepPreview = useKeepPreview();
+  // Output window or LIVE Studio Link source is drawing the character already.
+  const outputLive = preview && (state.output?.clients ?? 0) > 0;
+  const previewPaused = outputLive && !keepPreview;
   // The output window receives a ready-made view; the operator app derives it locally.
   const view =
     overlay !== undefined
@@ -83,12 +88,35 @@ export function SceneFrame({
             preview={preview}
           />
         )}
-        <Live2DAvatar
-          avatar={state.avatar}
-          action={state.action}
-          emotion={state.emotion}
-          preview={preview}
-        />
+        {previewPaused ? (
+          <div className="preview-paused">
+            <b>พัก preview ชั่วคราว</b>
+            <span>หน้า output กำลังแสดงตัวละครอยู่ · ประหยัด CPU/GPU ระหว่างไลฟ์</span>
+            <button
+              type="button"
+              className="button secondary"
+              onClick={() => setKeepPreview(true)}
+            >
+              แสดง preview
+            </button>
+          </div>
+        ) : (
+          <Live2DAvatar
+            avatar={state.avatar}
+            action={state.action}
+            emotion={state.emotion}
+            preview={preview}
+          />
+        )}
+        {outputLive && keepPreview && (
+          <button
+            type="button"
+            className="preview-pause-toggle"
+            onClick={() => setKeepPreview(false)}
+          >
+            พัก preview
+          </button>
+        )}
         <Overlay view={view} />
       </div>
       {preview && (

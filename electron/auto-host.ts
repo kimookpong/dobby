@@ -20,6 +20,8 @@ export class AutoHost {
   /** Mood detection on streamed transcripts runs only when text grows, at most twice per turn. */
   private mood = { changes: 0, checkedLength: 0, eventType: "comment" as ViewerEvent["type"] | "idle" | "welcome" };
   private welcomes: WelcomeBatcher;
+  /** What this realtime voice session has already been told (reset per session). */
+  private sent = { at: 0, viewers: new Set<string>() };
   /** Status at the moment each viewer's latest event arrived (small, bounded). */
   private profiles = new Map<string, ViewerProfile>();
   /** Debug timings for the reply in progress. */
@@ -112,17 +114,21 @@ export class AutoHost {
     if (this.core.state.autoHost.enabled) return;
     this.generation++;
     this.quietSince = this.now();
+    // A fresh voice session knows nothing yet: the first turn carries the full recent context.
+    this.sent = { at: 0, viewers: new Set() };
     this.core.state.autoHost.enabled = true;
+    this.core.state.autoHost.recoverable = false;
     this.voice.keepAlive(true);
     this.state("waiting", "Auto Host เปิดแล้ว · รอข้อความใหม่จากผู้ชม");
     this.schedule();
   }
-  stop(message = "หยุดตอบไลฟ์อัตโนมัติแล้ว", error = false) {
+  stop(message = "หยุดตอบไลฟ์อัตโนมัติแล้ว", error = false, recoverable = false) {
     this.generation++;
     this.welcomes.clear();
     this.syncWelcomeCount();
     if (this.timing) this.emitTiming(false, message);
     this.core.state.autoHost.enabled = false;
+    this.core.state.autoHost.recoverable = recoverable;
     this.brain?.cancel();
     const job = this.current;
     this.current = null;
@@ -156,7 +162,7 @@ export class AutoHost {
       this.voice.state.preview ||
       this.voice.state.mode !== "host"
     )
-      this.stop("เสียงตัดการเชื่อมต่อ · กดเริ่ม Auto Host อีกครั้ง", true);
+      this.stop("เสียงตัดการเชื่อมต่อ · กำลังลองเชื่อมใหม่อัตโนมัติ", true, true);
     else this.schedule();
   };
   private schedule() {
@@ -227,9 +233,18 @@ export class AutoHost {
       this.mood = { changes: 0, checkedLength: 0,
         eventType: kind === "reply" ? sourceEvent?.type ?? "comment" : kind };
       if (kind === "welcome") this.core.setEmotion("happy");
-      const context = this.memory.context(this.core.state.hostSettings,
-        kind, this.viewerId);
-      if (this.brain?.state.selectedId) {
+      // A text model starts a fresh thread per reply and needs the full context;
+      // the realtime voice session keeps history, so it only gets what is new.
+      const usesBrain = !!this.brain?.state.selectedId;
+      const context = usesBrain
+        ? this.memory.context(this.core.state.hostSettings, kind, this.viewerId)
+        : this.memory.contextSince(this.core.state.hostSettings, kind, this.viewerId,
+            this.sent.at, !!this.viewerId && !this.sent.viewers.has(this.viewerId));
+      if (!usesBrain) {
+        this.sent.at = Math.max(this.sent.at, this.memory.latestAt);
+        if (this.viewerId) this.sent.viewers.add(this.viewerId);
+      }
+      if (usesBrain && this.brain) {
         this.state(
           "answering",
           `กำลังคิดคำตอบให้ ${job.name} · ${this.brain.state.selectedId}`,
@@ -274,7 +289,7 @@ export class AutoHost {
       }
     } catch (e) {
       if (generation === this.generation) {
-        this.stop(e instanceof Error ? e.message : "ตอบไลฟ์ไม่สำเร็จ", true);
+        this.stop(e instanceof Error ? e.message : "ตอบไลฟ์ไม่สำเร็จ", true, true);
         this.voice.disconnect();
       }
     } finally {

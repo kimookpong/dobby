@@ -127,6 +127,9 @@ async function boot() {
       );
   };
   core.state.voice = voice.state;
+  voice.on("replyDone", () => {
+    if (main && !main.isDestroyed()) main.webContents.send("dobby:voice-reply-done");
+  });
   voice.on("change", () => {
     core.state.voice = voice.state;
     if (voice.state.status !== "connected")

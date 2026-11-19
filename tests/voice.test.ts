@@ -18,6 +18,8 @@ class FakeCodex extends EventEmitter {
   async call(method: string, params: any = {}) {
     this.calls.push({ method, params });
     if (method === "account/read") return { account: { type: this.account } };
+    if (method === "config/read")
+      return { config: { mcp_servers: { dobby: {}, other: {} } } };
     if (method === "thread/realtime/listVoices")
       return { voices: { v3: ["cove", "juniper"] } };
     if (method === "thread/start") return { thread: { id: "speech-thread" } };
@@ -367,6 +369,41 @@ test("host mode sends audience data as JSON, returns assistant transcripts and i
     voice.finished();
     assert.equal(finished, 1);
     assert.equal(voice.state.speaking, false);
+  } finally {
+    await clean();
+  }
+});
+
+test("voice sessions keep the user's MCP servers (including Dobby's own) switched off", async () => {
+  const { voice, fake, core, clean } = await setup();
+  try {
+    await voice.connect("offer", core.state.character, undefined, "host");
+    const start = fake.calls.find((c) => c.method === "thread/start")!.params;
+    assert.deepEqual(start.config, {
+      "mcp_servers.dobby.enabled": false,
+      "mcp_servers.other.enabled": false,
+    });
+  } finally {
+    await clean();
+  }
+});
+
+test("each spoken request gets a new utterance id and Codex reply-done is forwarded", async () => {
+  const { voice, fake, core, clean } = await setup();
+  try {
+    await voice.connect("offer", core.state.character, undefined, "host");
+    voice.connected();
+    const before = voice.state.utterance;
+    let done = 0;
+    voice.on("replyDone", () => done++);
+    await voice.respondAudience({ name: "A", text: "hi", type: "comment" });
+    assert.equal(voice.state.utterance, before + 1);
+    fake.emit("notification", "thread/realtime/transcript/done", {
+      threadId: "speech-thread",
+      role: "assistant",
+      text: "สวัสดีค่ะ",
+    });
+    assert.equal(done, 1);
   } finally {
     await clean();
   }

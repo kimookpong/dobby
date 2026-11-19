@@ -24,7 +24,7 @@ export function VoicePage({
   player: ReturnType<typeof useCodexVoice>;
   notify: (s: string) => void;
   hostStarting: boolean;
-  startHost: (settings?: VoiceSettings) => Promise<void>;
+  startHost: (settings?: VoiceSettings) => Promise<unknown>;
   stopHost: () => Promise<void>;
 }) {
   const voice = state.voice;

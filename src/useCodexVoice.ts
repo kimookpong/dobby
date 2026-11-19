@@ -21,7 +21,17 @@ export function useCodexVoice(
   const resources = useRef<Resources | null>(null);
   const report = useRef(createAudioReporter()).current;
   const connecting = useRef(false);
-  const busy = useRef({ requested: false, at: 0, heard: false, lastSound: 0 });
+  const busy = useRef({
+    requested: false,
+    at: 0,
+    heard: false,
+    lastSound: 0,
+    serverDone: false,
+  });
+  /** Utterance the end-of-speech detector is armed for. */
+  const armedFor = useRef(-1);
+  /** True once this session has delivered a reply-done signal, so it can be trusted. */
+  const sawReplyDone = useRef(false);
   const [outputs, setOutputs] = useState<MediaDeviceInfo[]>([]),
     [sink, setSink] = useState("");
   const [signal, setSignal] = useState({
@@ -35,7 +45,7 @@ export function useCodexVoice(
     const r = resources.current;
     resources.current = null;
     if (r) {
-      cancelAnimationFrame(r.frame);
+      clearInterval(r.frame);
       r.peer.close();
       r.silentInput.getTracks().forEach((track) => track.stop());
       r.silence.stop();
@@ -70,16 +80,28 @@ export function useCodexVoice(
     if (resources.current && voice)
       resources.current.media.volume = voice.settings.volume;
   }, [voice?.status, voice?.settings.volume]);
+  // Arm per utterance id, not on the speaking edge: state updates are batched, so
+  // "finished → next reply" can arrive as one update with speaking still true.
   useEffect(() => {
-    if (voice?.speaking)
+    if (voice?.speaking && voice.utterance !== armedFor.current) {
+      armedFor.current = voice.utterance;
       busy.current = {
         requested: true,
         at: performance.now(),
         heard: false,
         lastSound: 0,
+        serverDone: false,
       };
-    else busy.current.requested = false;
-  }, [voice?.speaking]);
+    } else if (!voice?.speaking) busy.current.requested = false;
+  }, [voice?.speaking, voice?.utterance]);
+  useEffect(
+    () =>
+      window.dobby.onVoiceReplyDone(() => {
+        sawReplyDone.current = true;
+        busy.current.serverDone = true;
+      }),
+    [],
+  );
   useEffect(() => () => cleanup(), []);
   const connect = async (
     settings: VoiceSettings,
@@ -87,6 +109,7 @@ export function useCodexVoice(
     mode: "speech" | "host" = "speech",
   ) => {
     cleanup();
+    sawReplyDone.current = false;
     connecting.current = true;
     const context = new AudioContext();
     void context.resume(); // Resume inside the user's click, before IPC/network work.
@@ -265,15 +288,22 @@ export function useCodexVoice(
             b.heard = true;
             b.lastSound = now;
           }
-          if (b.heard && now - b.lastSound > 1600) {
+          // Codex said the reply is complete → a short tail of silence is enough.
+          // Without that signal, fall back to a longer guess (shorter if this
+          // session never sends the signal, as before).
+          const quietNeeded = b.serverDone ? 450 : sawReplyDone.current ? 3000 : 1600;
+          if (b.heard && now - b.lastSound > quietNeeded) {
             b.requested = false;
             window.dobby.voicePlayback({ type: "finished" });
           } else if (!b.heard && now - b.at > 25_000)
             failure("Codex ยังไม่ส่งเสียงกลับมา · ตรวจสิทธิ์ Voice แล้วเชื่อมใหม่");
         }
-        r.frame = requestAnimationFrame(sample);
       };
+      // A timer keeps sampling when the window is covered (e.g. by LIVE Studio);
+      // animation frames stop in an occluded window and would freeze lip-sync
+      // and end-of-speech detection.
       sample();
+      r.frame = window.setInterval(sample, 30);
       return true;
     } catch (e) {
       const message =

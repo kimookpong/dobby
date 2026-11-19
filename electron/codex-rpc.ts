@@ -126,7 +126,7 @@ export class CodexRpc extends EventEmitter {
       clientInfo: {
         name: "dobby_voice",
         title: "Dobby voice",
-        version: "0.8.0",
+        version: "0.8.1",
       },
       capabilities: { experimentalApi: true },
     });
