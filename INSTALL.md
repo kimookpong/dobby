@@ -54,7 +54,13 @@ npm run package
 npx electron-builder --mac dir -c.mac.identity=null
 ```
 
-แอปที่ไม่ได้เซ็น macOS จะเตือนตอนเปิดครั้งแรก ให้คลิกขวาที่แอป → Open หรือรัน:
+แล้วเซ็นแบบ ad-hoc ทั้งแอป (ถ้าข้ามขั้นนี้ macOS จะบอกว่าแอป "damaged"):
+
+```bash
+codesign --force --deep --sign - release/mac-arm64/Dobby.app
+```
+
+แอปที่ไม่ได้ notarize macOS จะไม่ยอมเปิดครั้งแรก ให้ไปที่ System Settings → Privacy & Security แล้วกด Open Anyway หรือรัน:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Dobby.app
