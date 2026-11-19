@@ -1,0 +1,15 @@
+node_modules/
+dist/
+dist-electron/
+release/
+.dobby/
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+# Built apps and local backups (backups contain personal settings and memory)
+release*/
+*.app/
+# Internal screenshots may show real viewers' names
+artifacts/

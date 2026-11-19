@@ -1,0 +1,8 @@
+Use case: logo-brand.
+Asset type: primary mascot symbol for the desktop AI livestream app named Dobby.
+Primary request: create an entirely original friendly AI elf mascot, with its own identity and no resemblance to any existing movie or franchise character. A compact round face, short softly rounded nose, two broad upward-angled leaf-shaped ears, two small swept mint hair tufts, bright clever eyes and a subtle welcoming smile. Head-and-shoulders bust only.
+AI concept: a tiny four-point mint spark embedded in the forehead and two short elegant circuit traces ending in round nodes inside each leaf ear. The character should feel like a helpful digital woodland companion.
+Style: professional minimalist vector-style mascot logo, strong clean curves, bold flat silhouette, crisp edges, clever negative space, minimal internal details, readable as a 48px application icon. Flat solid colors only, no gradients, no texture.
+Palette: pale mint #BCF7D4, charcoal #151B1A, deep teal accent, tiny ivory highlights; maximum four colors. Broad mint outer shapes remain readable on dark UI, charcoal internal structure remains strong on white.
+Composition: one centered standalone mascot logo with generous transparent margins, square image, actual transparent background. Balanced ear silhouette and a face with distinctive personality.
+Constraints: completely original design. No movie references, no borrowed character likeness, no existing franchise symbols. No text or letters, no wordmark, no slogan, no watermark, no presentation sheet, no multiple variants, no phone mockup, no glow, no background panel. Deliver a polished production-ready AI elf mascot logo.

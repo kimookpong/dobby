@@ -1,0 +1,17 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "dobby",
+  "version": "0.6.0",
+  "description": "Control Dobby's avatar, load its persona, and manage the TikTok audience reply queue.",
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Dobby",
+        "shortDescription": "Your AI VTuber live companion",
+        "longDescription": "Connect a local Dobby desktop app to Codex. Read audience events and play avatar actions for TikTok LIVE Studio.",
+        "developerName": "Dobby Project",
+        "brandColor": "#BCF7D4"
+      }
+    }
+  }
+}
