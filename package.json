@@ -2,6 +2,7 @@
   "name": "dobby",
   "version": "0.8.0",
   "private": true,
+  "license": "MIT",
   "description": "Dobby — AI VTuber control room for Codex and TikTok LIVE Studio",
   "type": "module",
   "main": "dist-electron/main.cjs",

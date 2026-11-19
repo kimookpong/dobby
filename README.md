@@ -198,3 +198,9 @@ npm run package
 - ลิงก์ output คงที่และการอัปเดตแอป
 
 ดูภาพรวมและเกณฑ์ผ่านแต่ละระยะใน [DOBBY_PLAN.md](DOBBY_PLAN.md)
+
+## สัญญาอนุญาต
+
+โค้ดของ Dobby ใช้สัญญาอนุญาต [MIT](LICENSE)
+
+ส่วนประกอบจากภายนอกใช้สัญญาอนุญาตของตัวเอง ดู [THIRD_PARTY_NOTICES.txt](public/THIRD_PARTY_NOTICES.txt) · Live2D Cubism Core และโมเดล Live2D ไม่ได้รวมอยู่ใน repo นี้ ผู้ใช้ต้องดาวน์โหลดและใช้ตามเงื่อนไขของ Live2D เอง
