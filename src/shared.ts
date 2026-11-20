@@ -72,6 +72,8 @@ export interface ReplyJob {
   createdAt: number;
   status: "waiting" | "claimed";
   claimedAt?: number;
+  /** Event that created the job; thank-yous wait longer than comments. */
+  type?: EventType;
   giftKey?: string;
   giftCount?: number;
   giftTier?: GiftTier;

@@ -437,7 +437,7 @@ function App() {
             <ArrowUpRight size={15} />
           </button>
           <div className="version">
-            DOBBY DESKTOP <span>v0.8.1</span>
+            DOBBY DESKTOP <span>v0.8.2</span>
           </div>
         </div>
       </aside>

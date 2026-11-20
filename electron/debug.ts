@@ -1,5 +1,5 @@
 import type { DobbyCore } from "./core";
-import type { DebugMetrics, ReplyTiming } from "../src/shared";
+import type { DebugMetrics, ReplyJob, ReplyTiming } from "../src/shared";
 
 type ProcessSample = { label: string; pid: number; cpu: number; memoryMB: number };
 
@@ -22,6 +22,7 @@ export class DebugMonitor {
     core.on("audio", this.audio);
     core.on("debug:sse", this.sse);
     core.on("debug:reply", this.reply);
+    core.on("queue:dropped", this.dropped);
   }
   get enabled() {
     return this.core.state.debug.enabled;
@@ -56,6 +57,12 @@ export class DebugMonitor {
   private sse = (size: number) => {
     this.counts.sse++;
     this.bytes.sse += size;
+  };
+  private dropped = (jobs: ReplyJob[]) => {
+    this.note(
+      "queue",
+      `ข้าม ${jobs.length} รายการที่รอนานเกินไป: ${jobs.map((j) => j.name).join(", ")}`,
+    );
   };
   private reply = (timing: ReplyTiming) => {
     this.replies.unshift(timing);
@@ -96,5 +103,6 @@ export class DebugMonitor {
     this.core.off("audio", this.audio);
     this.core.off("debug:sse", this.sse);
     this.core.off("debug:reply", this.reply);
+    this.core.off("queue:dropped", this.dropped);
   }
 }

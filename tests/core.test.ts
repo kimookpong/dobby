@@ -82,10 +82,42 @@ test("queue is bounded, claims exclusive and expired jobs cannot complete", () =
   const claimed = core.claim()!;
   assert.ok(claimed);
   assert.equal(core.claim(), null);
-  now += 31_000;
+  now += 91_000;
+  core.expire();
+  // Waiting comments expire; the job being spoken survives until its own limit.
+  assert.deepEqual(core.state.queue.map((j) => j.id), [claimed.id]);
+  now += 30_000;
   core.expire();
   assert.equal(core.state.queue.length, 0);
   assert.throws(() => core.finish(claimed.id));
+});
+test("burst comments: newest answered first, stale ones dropped and reported", () => {
+  let now = 100_000;
+  const core = new DobbyCore({}, () => now);
+  const dropped: string[] = [];
+  core.on("queue:dropped", (jobs: { name: string }[]) => dropped.push(...jobs.map((j) => j.name)));
+  for (const name of ["a", "b", "c"]) {
+    core.ingest(event({ id: name, viewerId: name, name }));
+    now += 1_000;
+  }
+  const first = core.claim()!;
+  assert.equal(first.name, "c");
+  // A long reply (>30s) still finishes and the older comments are still waiting.
+  now += 45_000;
+  core.finish(first.id);
+  assert.equal(core.claim()!.name, "b");
+  now += 60_000;
+  core.expire();
+  assert.deepEqual(dropped, ["a"]);
+});
+test("gift thank-yous wait longer than comments", () => {
+  let now = 100_000;
+  const core = new DobbyCore({}, () => now);
+  core.ingest(event({ id: "c", viewerId: "c" }));
+  core.ingest(event({ id: "g", viewerId: "g", type: "gift", text: "Rose", giftId: "1", streakId: "s" }));
+  now += 120_000;
+  core.expire();
+  assert.deepEqual(core.state.queue.map((j) => j.type), ["gift"]);
 });
 test("viewer cooldown prevents queue flooding without hiding comments", () => {
   const core = new DobbyCore({}, () => 100_000);

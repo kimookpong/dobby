@@ -51,6 +51,15 @@ export type SavedSettings = {
   rules?: Rule[];
   username?: string;
 };
+/** How long an unanswered comment stays relevant. */
+export const COMMENT_TTL = 90_000;
+/** Gift and follow thank-yous may be late but should still happen. */
+export const THANKS_TTL = 180_000;
+/** A reply being spoken that never finishes is released after this. */
+export const CLAIMED_TTL = 120_000;
+const waitTtl = (job: ReplyJob) =>
+  job.type && job.type !== "comment" ? THANKS_TTL : COMMENT_TTL;
+
 export function giftTier(value: number, settings: GiftTierSettings): GiftTier {
   return value >= settings.bigAt ? "big" : value >= settings.mediumAt ? "medium" : "small";
 }
@@ -168,9 +177,18 @@ export class DobbyCore extends EventEmitter {
   }
   expire() {
     const now = this.now();
-    const queue = this.state.queue.filter((j) => now - j.createdAt < 30_000);
-    let changed = queue.length !== this.state.queue.length;
+    const dropped: ReplyJob[] = [];
+    const queue = this.state.queue.filter((j) => {
+      const keep =
+        j.status === "claimed"
+          ? now - (j.claimedAt ?? j.createdAt) < CLAIMED_TTL
+          : now - j.createdAt < waitTtl(j);
+      if (!keep) dropped.push(j);
+      return keep;
+    });
+    let changed = dropped.length > 0;
     this.state.queue = queue;
+    if (dropped.length) this.emit("queue:dropped", dropped);
     if (
       this.state.action.name !== "neutral" &&
       now - this.state.action.at > 4500
@@ -270,6 +288,7 @@ export class DobbyCore extends EventEmitter {
                   : `${isGift ? `ขอบคุณสำหรับ ${event.text} ×${delta}` : "ขอบคุณที่ติดตาม"}`,
               createdAt: this.now(),
               status: "waiting",
+              type: event.type,
               ...(giftKey ? { giftKey, giftCount: delta } : {}),
             };
             this.state.queue.push(job);
@@ -314,10 +333,15 @@ export class DobbyCore extends EventEmitter {
       this.state.queue.some((j) => j.status === "claimed")
     )
       return null;
-    // Highest priority first (big gifts), then oldest.
+    // Highest priority first (gifts by tier), then the newest so replies stay current.
     let job: ReplyJob | undefined;
     for (const j of this.state.queue)
-      if (j.status === "waiting" && (!job || (j.priority ?? 0) > (job.priority ?? 0)))
+      if (
+        j.status === "waiting" &&
+        (!job ||
+          (j.priority ?? 0) > (job.priority ?? 0) ||
+          ((j.priority ?? 0) === (job.priority ?? 0) && j.createdAt >= job.createdAt))
+      )
         job = j;
     if (!job) return null;
     job.status = "claimed";

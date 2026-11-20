@@ -88,7 +88,7 @@ server.registerTool(
   "claim_reply",
   {
     description:
-      "Claim one audience reply for up to 30 seconds from event arrival. Only one may be claimed. Returns null when paused, busy or empty. Does not generate or play speech.",
+      "Claim one audience reply: gifts by tier first, then the newest. Comments wait up to 90 seconds, gift and follow thank-yous up to 180 seconds, and a claim is released after 120 seconds. Only one may be claimed. Returns null when paused, busy or empty. Does not generate or play speech.",
   },
   () => output("claim"),
 );

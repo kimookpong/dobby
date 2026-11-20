@@ -172,7 +172,7 @@ test("pausing prevents new host replies and expired jobs are never replayed", as
   const { core, voice, host } = setup(() => now);
   try {
     core.simulate("comment");
-    now += 31000;
+    now += 91000;
     host.start();
     await settle();
     assert.equal(voice.calls.length, 0);
